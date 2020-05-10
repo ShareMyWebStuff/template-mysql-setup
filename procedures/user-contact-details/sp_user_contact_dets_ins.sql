@@ -40,7 +40,7 @@ BEGIN
 	FROM   geo_countries
 	WHERE  country = p_country;
 	
-	SET    v_location_id = sf_geo_location_nearest_location_id_get( p_address2, p_town, p_postcode );
+	SET    v_location_id = sf_geo_location_nearest_location_id_get( p_address2, p_town, p_county, p_postcode );
 	
 	SELECT COUNT(*)
 	INTO   v_rc

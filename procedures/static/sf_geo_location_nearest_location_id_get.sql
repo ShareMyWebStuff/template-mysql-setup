@@ -22,60 +22,109 @@ SELECT * FROM geo_locations where location_id = 18512;
 
 */
 
+/*
+SELECT sf_geo_location_nearest_location_id_get( '',                     'Woking',         'Surrey',			'GU21 111'     ) as location_id;
+SELECT sf_geo_location_nearest_location_id_get( '',                     'Woking',         'Surrey',			'GU21 4DS'     ) as location_id;
+SELECT sf_geo_location_nearest_location_id_get( '',                     'Woking',         'Surrey',			'GU21 4'       ) as location_id;
+SELECT sf_geo_location_nearest_location_id_get( '',                     'Woking',         'Surrey',			''             ) as location_id;
+
+SELECT sf_geo_location_nearest_location_id_get( '',                     'Worthing',       'Surrey',			''             ) as location_id;
+*/
+
+
 DROP FUNCTION IF EXISTS sf_geo_location_nearest_location_id_get;
 
 DELIMITER ||  
 
-CREATE FUNCTION sf_geo_location_nearest_location_id_get( p_address2 VARCHAR (80), p_town VARCHAR (80), p_postcode VARCHAR (11) ) RETURNS INTEGER 
+CREATE FUNCTION sf_geo_location_nearest_location_id_get( p_address2 VARCHAR (80), p_town VARCHAR (80), p_region VARCHAR(100), p_postcode VARCHAR (11) ) RETURNS INTEGER 
 BEGIN  
 	DECLARE v_location_id INTEGER;
+	DECLARE v_region_id   MEDIUMINT;
   	DECLARE v_search      VARCHAR (210);
     DECLARE v_rc          INTEGER;
 
 	SET v_location_id = -1;
-	
-	--
+
+	-- 
 	-- Check the postcode exists
 	--
 	IF p_postcode != '' THEN
 
+		-- Only one postcode can be selected due to unique key on postcode
 		SELECT location_id
 		INTO   v_location_id
 		FROM   geo_postcodes
 		WHERE  lc_postcode = replace(lower(p_postcode), ' ', '');
-
-		IF (ROW_COUNT() != 1) THEN
-
-			SET v_search = CONCAT(REPLACE(LOWER(p_postcode), ' ', ''), '%');
-			SELECT location_id
-			INTO   v_location_id
-			FROM   geo_postcodes
-			WHERE  lc_postcode LIKE v_search;
-        END IF;
 
 	END IF;
 
 	--
 	-- Check the city exists
 	--
-	IF v_location_id = -1 AND p_town != '' THEN
+	IF v_location_id = -1 AND trim(p_town) != '' THEN
 
-		SELECT location_id
-		INTO   v_location_id
-		FROM   geo_locations
-		WHERE  lc_location = LOWER(p_town);
+		-- Check the number of cities returned. Worthing / Attleborough have two.
+		SELECT	COUNT(*)
+		INTO	v_rc
+		FROM	geo_locations
+		WHERE	lc_location = lower(trim(p_town));
+
+		IF v_rc > 1 AND trim(p_region) != '' THEN
+
+			SELECT	region_id
+			INTO	v_region_id
+			FROM	geo_regions
+			WHERE	lc_region	= lower(trim(p_region));
+
+			IF (ROW_COUNT() = 1) THEN
+
+				SELECT	COUNT(*)
+				INTO	v_rc
+				FROM	geo_locations
+				WHERE	region_id		= v_region_id
+				AND		lc_location = lower(trim(p_town));
+
+				IF v_rc = 1 THEN
+
+					SELECT	location_id
+					INTO	v_location_id
+					FROM	geo_locations
+					WHERE	region_id		= v_region_id
+					AND		lc_location = lower(trim(p_town));
+
+				END IF;
+
+			END IF;
+
+		ELSEIF v_rc = 1 THEN
+
+			SELECT	location_id
+			INTO	v_location_id
+			FROM	geo_locations
+			WHERE	lc_location = lower(trim(p_town));
+
+		END IF;
 
 	END IF;
 
 	IF v_location_id = -1 AND p_address2 != '' THEN
 
-		SELECT location_id
-		INTO   v_location_id
-		FROM   geo_locations
-		WHERE  lc_location = LOWER(p_address2);
+		SELECT	COUNT(*)
+		INTO	v_rc
+		FROM	geo_locations
+		WHERE	lc_location = lower(trim(p_address2));
+
+		IF v_rc = 1 THEN
+
+			SELECT location_id
+			INTO   v_location_id
+			FROM	geo_locations
+			WHERE	lc_location = lower(trim(p_address2));
+
+		END IF;
 
 	END IF;
-	
+
 	RETURN v_location_id;
 END ||  
 

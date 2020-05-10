@@ -34,7 +34,7 @@ BEGIN
     DECLARE v_update_statement VARCHAR (600);
     
 
-	SELECT COUNT(*) INTO v_rc FROM smt_user_login WHERE user_id = p_user_id;
+	SELECT COUNT(*) INTO v_rc FROM user_login WHERE user_id = p_user_id;
 
 	IF ( v_rc = 1) THEN
     
@@ -103,7 +103,7 @@ BEGIN
 			SET v_affected_rows = 0, v_changed_rows = 0;
         END IF;
 
-		UPDATE	smt_user_login
+		UPDATE	user_login
 		SET		validated = CASE WHEN validated_email = 'Y' OR validated_mobile = 'Y' THEN 'Y' ELSE 'N' END
 		WHERE	user_id = p_user_id;
 
